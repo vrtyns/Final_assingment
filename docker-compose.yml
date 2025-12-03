@@ -12,16 +12,18 @@ services:
       MYSQL_USER: bookleaseuser
       MYSQL_PASSWORD: bookleasepass
     ports:
-      - "3306:3306"  # ใช้ port เดิม
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - booklease-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Backend API
   api:
@@ -39,12 +41,18 @@ services:
       DB_NAME: booklease
       JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
     ports:
-      - "3001:3001"  # ใช้ port เดิม
+      - "3001:3001"
     depends_on:
       mysql:
         condition: service_healthy
     networks:
       - booklease-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health", "||", "exit", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   # Frontend
   frontend:
@@ -54,11 +62,13 @@ services:
     container_name: booklease_frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      # สำคัญ! ใช้ชื่อ service แทน localhost
+      NEXT_PUBLIC_API_URL: http://api:3001/api
     ports:
-      - "3000:3000"  # ใช้ port เดิม
+      - "3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - booklease-network
 

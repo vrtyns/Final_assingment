@@ -1,6 +1,7 @@
 node_modules
-.git
+.next
+npm-debug.log
 .env
 .env.local
-*.log
+.git
 .DS_Store

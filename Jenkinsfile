@@ -9,7 +9,10 @@ pipeline {
         stage('Cleanup') {
             steps {
                 echo 'Stopping old containers...'
-                sh 'docker compose down -v || true'
+                sh '''
+                    docker compose down -v || true
+                    docker system prune -f || true
+                '''
             }
         }
         
@@ -20,42 +23,50 @@ pipeline {
             }
         }
         
+        stage('Verify Files') {
+            steps {
+                echo 'Checking required files...'
+                sh '''
+                    ls -la
+                    echo "Checking init.sql..."
+                    if [ ! -f "init.sql" ]; then
+                        echo "ERROR: init.sql not found!"
+                        exit 1
+                    fi
+                    echo "Checking Dockerfiles..."
+                    ls -la api/Dockerfile
+                    ls -la frontend/Dockerfile
+                '''
+            }
+        }
+        
         stage('Build Images') {
             steps {
-                echo "Building API first..."
-                sh 'docker compose build api --no-cache'
-                
-                echo "Building Frontend next..."
-                sh 'docker compose build frontend --no-cache'
+                echo 'Building Docker images...'
+                sh '''
+                    docker compose build --no-cache mysql
+                    docker compose build --no-cache api
+                    docker compose build --no-cache frontend
+                '''
             }
         }
         
         stage('Start Services') {
             steps {
-                script {
-                    sh '''
-                        echo "Cleaning up old containers..."
-                        # 1. สั่งลบ Container เก่าที่ชื่อซ้ำออกไปก่อน (สำคัญ!)
-                        # ใส่ || true เพื่อกัน Error กรณีที่ยังไม่มี Container
-                        docker rm -f booklease_mysql || true
-                        
-                        # หรือจะใช้ docker compose down ก็ได้ (แต่ระวังเรื่อง -v)
-                        docker compose down --remove-orphans || true
-
-                        echo "Starting new containers..."
-                        # 2. สร้างใหม่
-                        docker compose up -d
-                    '''
-                }
-            }
-        }
-        
-        stage('Wait for Services') {
-            steps {
-                echo 'Waiting for services to be ready...'
-                script {
+                echo 'Starting services...'
+                sh '''
+                    docker compose up -d mysql
+                    echo "Waiting for MySQL to be ready..."
                     sleep 30
-                }
+                    
+                    docker compose up -d api
+                    echo "Waiting for API to be ready..."
+                    sleep 20
+                    
+                    docker compose up -d frontend
+                    echo "Waiting for Frontend to be ready..."
+                    sleep 15
+                '''
             }
         }
         
@@ -63,32 +74,41 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 script {
+                    // Check MySQL
+                    sh '''
+                        echo "Checking MySQL..."
+                        docker exec booklease_mysql mysqladmin ping -h localhost -u root -proot123 || exit 1
+                        echo "MySQL is healthy!"
+                    '''
+                    
                     // Check API
                     sh '''
-                        max_attempts=10
+                        echo "Checking API..."
+                        max_attempts=15
                         attempt=1
                         while [ $attempt -le $max_attempts ]; do
                             if curl -f http://localhost:3001/api/health; then
                                 echo "API is healthy!"
-                                break
+                                exit 0
                             fi
-                            echo "Attempt $attempt/$max_attempts failed. Retrying..."
+                            echo "Attempt $attempt/$max_attempts failed. Retrying in 5s..."
                             sleep 5
                             attempt=$((attempt+1))
                         done
                         
-                        if [ $attempt -gt $max_attempts ]; then
-                            echo "API health check failed!"
-                            exit 1
-                        fi
+                        echo "API health check failed after $max_attempts attempts!"
+                        docker compose logs api
+                        exit 1
                     '''
                     
                     // Check Frontend
                     sh '''
+                        echo "Checking Frontend..."
                         if curl -f http://localhost:3000; then
                             echo "Frontend is healthy!"
                         else
                             echo "Frontend health check failed!"
+                            docker compose logs frontend
                             exit 1
                         fi
                     '''
@@ -96,30 +116,41 @@ pipeline {
             }
         }
         
-        stage('Run Tests') {
+        stage('Verify Database') {
             steps {
-                echo 'Running tests...'
-                // เพิ่ม tests ตรงนี้ถ้ามี
-                sh 'echo "All tests passed!"'
+                echo 'Verifying database setup...'
+                sh '''
+                    docker exec booklease_mysql mysql -u bookleaseuser -pbookleasepass booklease -e "SHOW TABLES;" || exit 1
+                    docker exec booklease_mysql mysql -u bookleaseuser -pbookleasepass booklease -e "SELECT COUNT(*) FROM books;" || exit 1
+                    echo "Database verification passed!"
+                '''
             }
         }
     }
     
     post {
         success {
+            echo '========================================='
             echo 'Pipeline completed successfully! 🎉'
+            echo '========================================='
             echo 'Application is running at:'
             echo '  - Frontend: http://localhost:3000'
             echo '  - API: http://localhost:3001/api'
             echo '  - MySQL: localhost:3306'
+            echo '========================================='
+            sh 'docker compose ps'
         }
         failure {
+            echo '========================================='
             echo 'Pipeline failed! 😞'
-            sh 'docker compose logs'
+            echo '========================================='
+            echo 'Container logs:'
+            sh 'docker compose logs --tail=50'
+            echo '========================================='
             sh 'docker compose down -v'
         }
         always {
-            echo 'Cleaning up build artifacts...'
+            echo 'Cleaning up...'
         }
     }
 }
