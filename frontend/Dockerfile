@@ -1,42 +1,30 @@
-# ---------- Stage 1: Build the Next.js application ----------
-FROM node:20-alpine AS builder
-
-# Accept build argument for API_HOST
-ARG API_HOST=http://localhost:3001
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
 
-# Copy source files and build
+# Install dependencies
+RUN npm ci
+
+# Copy source code
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    API_HOST=${API_HOST}
+
+# Build Next.js app
 RUN npm run build
 
-
-# ---------- Stage 2: Production runtime ----------
-FROM node:20-alpine AS runner
+# Production image
+FROM node:18-alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1
-
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copy built application
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-USER nextjs
+# Copy built files from builder
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
-
+CMD ["npm", "start"]

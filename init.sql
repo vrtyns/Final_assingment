@@ -1,11 +1,8 @@
--- ===================================
--- สร้าง Database และ Tables
--- ===================================
-
+-- Create database
 CREATE DATABASE IF NOT EXISTS booklease CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE booklease;
 
--- ตาราง users
+-- Tables
 CREATE TABLE users (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -15,7 +12,6 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ตาราง books
 CREATE TABLE books (
     book_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
@@ -32,7 +28,6 @@ CREATE TABLE books (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ตาราง rentals
 CREATE TABLE rentals (
     rental_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
@@ -47,7 +42,6 @@ CREATE TABLE rentals (
     FOREIGN KEY (book_id) REFERENCES books(book_id)
 );
 
--- ตาราง payments
 CREATE TABLE payments (
     payment_id INT PRIMARY KEY AUTO_INCREMENT,
     rental_id INT NOT NULL,
@@ -60,7 +54,6 @@ CREATE TABLE payments (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
--- ตาราง reviews
 CREATE TABLE reviews (
     review_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
@@ -72,6 +65,9 @@ CREATE TABLE reviews (
     FOREIGN KEY (book_id) REFERENCES books(book_id),
     UNIQUE KEY unique_user_book (user_id, book_id)
 );
+
+-- Insert seed data (ใส่ seed data ที่มีอยู่แล้วตรงนี้)
+-- ... (copy จาก seed_books.sql)
 
 -- ===================================
 -- Seed Data - 50+ Books

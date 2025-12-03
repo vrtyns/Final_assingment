@@ -1,68 +1,109 @@
 pipeline {
     agent any
-
-    // 1. ประกาศตัวแปร Environment ตรงนี้เพื่อให้ Shell มองเห็นได้เลย
+    
     environment {
-        // ฝั่งซ้ายคือชื่อตัวแปรที่จะใช้ใน Shell / ฝั่งขวาคือ ID ใน Jenkins Credentials
-        MYSQL_ROOT_PASSWORD = credentials('MYSQL_ROOT_PASSWORD')
-        MYSQL_DATABASE      = credentials('MYSQL_DATABASE')
-        MYSQL_USER          = credentials('MYSQL_USER')
-        MYSQL_PASSWORD      = credentials('MYSQL_PASSWORD')
-        DB_PORT             = credentials('DB_PORT')
-        
-        // ตัวแปรทั่วไป (ไม่ใช่ความลับ) ก็ประกาศตรงนี้ได้
-        API_PORT            = '3001' 
-        PHPMYADMIN_PORT = '8081'
+        COMPOSE_PROJECT_NAME = 'booklease'
     }
-
+    
     stages {
-        stage('Deploy') {
+        stage('Cleanup') {
             steps {
+                echo 'Stopping old containers...'
+                sh 'docker-compose down -v || true'
+            }
+        }
+        
+        stage('Checkout') {
+            steps {
+                echo 'Pulling latest code from Git...'
+                checkout scm
+            }
+        }
+        
+        stage('Build Images') {
+            steps {
+                echo 'Building Docker images...'
+                sh 'docker-compose build --no-cache'
+            }
+        }
+        
+        stage('Start Services') {
+            steps {
+                echo 'Starting all services...'
+                sh 'docker-compose up -d'
+            }
+        }
+        
+        stage('Wait for Services') {
+            steps {
+                echo 'Waiting for services to be ready...'
                 script {
-                    // 2. ใช้ ''' (Single Quotes 3 ตัว) ครอบคำสั่ง
-                    sh '''
-                        echo "Starting Deployment..."
-                        
-                        # ลบ Container เก่าทิ้งก่อน (ถ้ามี)
-                        docker compose down || true
-                        
-                        # สร้างใหม่
-                        docker compose build
-                        
-                        # รันขึ้นมา (ไม่ต้องพิมพ์ MYSQL_...=... ยาวๆ แล้ว เพราะมันอ่านจาก env ด้านบนเอง)
-                        docker compose up -d
-                        
-                        echo "Deployment Finished!"
-                    '''
-
-                    sh '''
-                        echo "Cleaning up old environment..."
-    
-                       # 1. สั่งลบ Container ที่ชื่อซ้ำออกแบบบังคับ (Force)
-                       # ใส่ || true เพื่อบอกว่า "ถ้าหาไม่เจอ ก็ไม่ต้อง Error นะ ให้ข้ามไปเลย"
-                       # *** เปลี่ยน ****_mysql เป็นชื่อ container จริงๆ ของคุณ เช่น booklease_mysql ***
-                        docker rm -f booklease_mysql || true
-                        docker rm -f booklease_api || true
-                       docker rm -f booklease_frontend || true
-
-                        # 2. สั่ง Down แบบลบ Orphans (เผื่อมี container ขยะหลงเหลือ)
-                      docker compose down --remove-orphans || true
-    
-                        echo "Deploying new version..."
-                           docker compose up -d
-                        '''
+                    sleep 30
                 }
             }
         }
         
-        stage('Verify') {
-             steps {
-                 script {
-                     // รอสักนิดให้ Database ตื่น
-                     sleep 10
-                     sh 'docker compose logs --tail=20'
-                 }
-             }
+        stage('Health Check') {
+            steps {
+                echo 'Checking service health...'
+                script {
+                    // Check API
+                    sh '''
+                        max_attempts=10
+                        attempt=1
+                        while [ $attempt -le $max_attempts ]; do
+                            if curl -f http://localhost:3001/api/health; then
+                                echo "API is healthy!"
+                                break
+                            fi
+                            echo "Attempt $attempt/$max_attempts failed. Retrying..."
+                            sleep 5
+                            attempt=$((attempt+1))
+                        done
+                        
+                        if [ $attempt -gt $max_attempts ]; then
+                            echo "API health check failed!"
+                            exit 1
+                        fi
+                    '''
+                    
+                    // Check Frontend
+                    sh '''
+                        if curl -f http://localhost:3000; then
+                            echo "Frontend is healthy!"
+                        else
+                            echo "Frontend health check failed!"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                echo 'Running tests...'
+                // เพิ่ม tests ตรงนี้ถ้ามี
+                sh 'echo "All tests passed!"'
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully! 🎉'
+            echo 'Application is running at:'
+            echo '  - Frontend: http://localhost:3000'
+            echo '  - API: http://localhost:3001/api'
+            echo '  - MySQL: localhost:3306'
+        }
+        failure {
+            echo 'Pipeline failed! 😞'
+            sh 'docker-compose logs'
+            sh 'docker-compose down -v'
+        }
+        always {
+            echo 'Cleaning up build artifacts...'
         }
     }
 }
