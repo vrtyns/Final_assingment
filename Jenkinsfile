@@ -33,6 +33,23 @@ pipeline {
                         
                         echo "Deployment Finished!"
                     '''
+
+                    sh '''
+                        echo "Cleaning up old environment..."
+    
+                       # 1. สั่งลบ Container ที่ชื่อซ้ำออกแบบบังคับ (Force)
+                       # ใส่ || true เพื่อบอกว่า "ถ้าหาไม่เจอ ก็ไม่ต้อง Error นะ ให้ข้ามไปเลย"
+                       # *** เปลี่ยน ****_mysql เป็นชื่อ container จริงๆ ของคุณ เช่น booklease_mysql ***
+                        docker rm -f booklease_mysql || true
+                        docker rm -f booklease_api || true
+                       docker rm -f booklease_frontend || true
+
+                        # 2. สั่ง Down แบบลบ Orphans (เผื่อมี container ขยะหลงเหลือ)
+                      docker compose down --remove-orphans || true
+    
+                        echo "Deploying new version..."
+                           docker compose up -d
+                        '''
                 }
             }
         }
