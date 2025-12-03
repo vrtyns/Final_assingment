@@ -11,7 +11,7 @@ pipeline {
         DB_PORT             = credentials('DB_PORT')
         
         // ตัวแปรทั่วไป (ไม่ใช่ความลับ) ก็ประกาศตรงนี้ได้
-        API_PORT            = '3000' 
+        API_PORT            = '3001' 
     }
 
     stages {
