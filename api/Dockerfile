@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
-# ติดตั้ง bash และ netcat สำหรับ wait-for-it
-RUN apk add --no-cache bash netcat-openbsd
+# ติดตั้ง bash, netcat และ curl สำหรับ healthcheck
+RUN apk add --no-cache bash netcat-openbsd curl
 
 WORKDIR /app
 
