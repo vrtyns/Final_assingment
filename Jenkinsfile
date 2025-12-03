@@ -29,8 +29,21 @@ pipeline {
         
         stage('Start Services') {
             steps {
-                echo 'Starting all services...'
-                sh 'docker compose up -d'
+                script {
+                    sh '''
+                        echo "Cleaning up old containers..."
+                        # 1. สั่งลบ Container เก่าที่ชื่อซ้ำออกไปก่อน (สำคัญ!)
+                        # ใส่ || true เพื่อกัน Error กรณีที่ยังไม่มี Container
+                        docker rm -f booklease_mysql || true
+                        
+                        # หรือจะใช้ docker compose down ก็ได้ (แต่ระวังเรื่อง -v)
+                        docker compose down --remove-orphans || true
+
+                        echo "Starting new containers..."
+                        # 2. สร้างใหม่
+                        docker compose up -d
+                    '''
+                }
             }
         }
         
