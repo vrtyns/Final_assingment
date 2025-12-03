@@ -12,6 +12,7 @@ pipeline {
         
         // ตัวแปรทั่วไป (ไม่ใช่ความลับ) ก็ประกาศตรงนี้ได้
         API_PORT            = '3001' 
+        PHPMYADMIN_PORT = '8081'
     }
 
     stages {
