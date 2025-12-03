@@ -9,7 +9,7 @@ pipeline {
         stage('Cleanup') {
             steps {
                 echo 'Stopping old containers...'
-                sh 'docker-compose down -v || true'
+                sh 'docker compose down -v || true'
             }
         }
         
@@ -23,14 +23,14 @@ pipeline {
         stage('Build Images') {
             steps {
                 echo 'Building Docker images...'
-                sh 'docker-compose build --no-cache'
+                sh 'docker compose build --no-cache'
             }
         }
         
         stage('Start Services') {
             steps {
                 echo 'Starting all services...'
-                sh 'docker-compose up -d'
+                sh 'docker compose up -d'
             }
         }
         
@@ -99,8 +99,8 @@ pipeline {
         }
         failure {
             echo 'Pipeline failed! 😞'
-            sh 'docker-compose logs'
-            sh 'docker-compose down -v'
+            sh 'docker compose logs'
+            sh 'docker compose down -v'
         }
         always {
             echo 'Cleaning up build artifacts...'
