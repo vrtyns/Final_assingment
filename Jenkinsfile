@@ -7,6 +7,16 @@ pipeline {
     }
 
     environment {
+        // --- 1. Map Credentials ให้ตรงกับชื่อ ID ที่เราสร้างใน Jenkins ---
+        // ซ้ายมือ: ชื่อตัวแปรที่จะใช้ในโค้ด (ใช้อะไรก็ได้ แต่ต้องจำได้)
+        // ขวามือ: credentials('ID ที่เราตั้งใน Jenkins')
+        
+        MYSQL_ROOT_PASSWORD = credentials('MYSQL_ROOT_PASSWORD')
+        MYSQL_DATABASE      = credentials('MYSQL_DATABASE')
+        MYSQL_USER          = credentials('MYSQL_USER')
+        MYSQL_PASSWORD      = credentials('MYSQL_PASSWORD')
+        DB_PORT             = credentials('DB_PORT')
+        API_PORT            = '3000' // หรือพอร์ตที่คุณใช้
         // Build Information
         BUILD_TAG = "${env.BUILD_NUMBER}"
         GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
@@ -57,21 +67,21 @@ pipeline {
                         string(credentialsId: 'MYSQL_PASSWORD', variable: 'MYSQL_PASS')
                     ]) {
                         // Create .env file
-                        sh """
+                        sh '''
                             cat > .env <<EOF
-MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
-MYSQL_DATABASE=attractions_db
-MYSQL_USER=attractions_user
-MYSQL_PASSWORD=${MYSQL_PASS}
-MYSQL_PORT=3306
-PHPMYADMIN_PORT=8888
-API_PORT=3001
-DB_PORT=3306
-FRONTEND_PORT=3000
-NODE_ENV=production
-API_HOST=${params.API_HOST}
-EOF
-                        """
+                        MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
+                        MYSQL_DATABASE=booklease_db
+                        MYSQL_USER=booklease_user
+                        MYSQL_PASSWORD=${MYSQL_PASS}
+                        MYSQL_PORT=3306
+                        PHPMYADMIN_PORT=8888
+                        API_PORT=3001
+                        DB_PORT=3306
+                        FRONTEND_PORT=3000
+                        NODE_ENV=production
+                        API_HOST=${params.API_HOST}
+                        EOF
+                        '''
                     }
 
                     echo "Environment configuration created"
