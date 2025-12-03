@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react'; // เพิ่ม Suspense
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '@/lib/api';
 
-export default function LoginPage() {
+// 1. แยกส่วนเนื้อหาและ Logic ออกมาเป็น Component ย่อย
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/';
@@ -148,5 +149,15 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2. Component หลัก (Default Export) มีหน้าที่แค่เอา Suspense มาห่อ
+export default function LoginPage() {
+  return (
+    // Fallback UI จะแสดงตอนที่กำลังโหลด parameter (ใส่เป็น null หรือ div ว่างๆ ก็ได้ถ้าโหลดเร็ว)
+    <Suspense fallback={<div className="min-h-screen bg-coffee-50 flex items-center justify-center">Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
