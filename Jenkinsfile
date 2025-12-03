@@ -22,8 +22,11 @@ pipeline {
         
         stage('Build Images') {
             steps {
-                echo 'Building Docker images...'
-                sh 'docker compose build --no-cache'
+                echo "Building API first..."
+                sh 'docker compose build api --no-cache'
+                
+                echo "Building Frontend next..."
+                sh 'docker compose build frontend --no-cache'
             }
         }
         
