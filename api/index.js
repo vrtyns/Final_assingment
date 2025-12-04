@@ -19,6 +19,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/books', require('./routes/books'));
 app.use('/api/rentals', require('./routes/rentals'));
+app.use('/api/payments', require('./routes/payments'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -55,6 +56,6 @@ app.listen(PORT, () => {
   console.log('=================================');
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`📡 API Base URL: http://localhost:${PORT}/api/books`);
   console.log('=================================');
 });
