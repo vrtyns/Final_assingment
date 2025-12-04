@@ -25,17 +25,18 @@ pipeline {
         )
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    echo "Checking out code..."
-                    checkout scm
-                    echo "Deploying to production environment"
-                    echo "Build: ${BUILD_TAG}, Commit: ${GIT_COMMIT_SHORT}"
-                }
-            }
+    stage('Checkout') {
+    steps {
+        script {
+            echo "Checking out code..."
+            checkout scm
+            GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+            echo "Deploying to production environment"
+            echo "Build: ${env.BUILD_NUMBER}, Commit: ${GIT_COMMIT_SHORT}"
         }
+    }
+}
+
 
         stage('Validate') {
             steps {
@@ -58,20 +59,20 @@ pipeline {
                     ]) {
                         // Create .env file
                         sh '''#!/bin/bash
-cat > .env <<EOF
-MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
-MYSQL_DATABASE=booklease
-MYSQL_USER=booklease_user
-MYSQL_PASSWORD=${MYSQL_PASS}
-MYSQL_PORT=3306
-PHPMYADMIN_PORT=8888
-API_PORT=3001
-DB_PORT=3306
-FRONTEND_PORT=3000
-NODE_ENV=production
-API_HOST='${params.API_HOST}'
-EOF
-'''
+                            cat > .env <<EOF
+                            MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
+                            MYSQL_DATABASE=booklease
+                            MYSQL_USER=booklease_user
+                            MYSQL_PASSWORD=${MYSQL_PASS}
+                            MYSQL_PORT=3306
+                            PHPMYADMIN_PORT=8888
+                            API_PORT=3001
+                            DB_PORT=3306
+                            FRONTEND_PORT=3000
+                            NODE_ENV=production
+                            API_HOST='${params.API_HOST}'
+                            EOF
+                            '''
 
                     }
 
