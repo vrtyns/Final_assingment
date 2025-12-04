@@ -1,13 +1,11 @@
-pipeline {
+pipeline { 
     agent any
 
     triggers {
-        // Poll SCM as fallback if webhook fails
         pollSCM('H/2 * * * *')
     }
 
     environment {
-        // Build Information
         BUILD_TAG = "${env.BUILD_NUMBER}"
         GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
     }
@@ -25,18 +23,19 @@ pipeline {
         )
     }
 
-    stage('Checkout') {
-    steps {
-        script {
-            echo "Checking out code..."
-            checkout scm
-            GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-            echo "Deploying to production environment"
-            echo "Build: ${env.BUILD_NUMBER}, Commit: ${GIT_COMMIT_SHORT}"
-        }
-    }
-}
+    stages {
 
+        stage('Checkout') {
+            steps {
+                script {
+                    echo "Checking out code..."
+                    checkout scm
+                    GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    echo "Deploying to production environment"
+                    echo "Build: ${env.BUILD_NUMBER}, Commit: ${GIT_COMMIT_SHORT}"
+                }
+            }
+        }
 
         stage('Validate') {
             steps {
@@ -52,12 +51,11 @@ pipeline {
                 script {
                     echo "Preparing environment configuration..."
 
-                    // Load credentials from Jenkins
                     withCredentials([
                         string(credentialsId: 'MYSQL_ROOT_PASSWORD', variable: 'MYSQL_ROOT_PASS'),
                         string(credentialsId: 'MYSQL_PASSWORD', variable: 'MYSQL_PASS')
                     ]) {
-                        // Create .env file
+
                         sh '''#!/bin/bash
                             cat > .env <<EOF
                             MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
@@ -72,12 +70,10 @@ pipeline {
                             NODE_ENV=production
                             API_HOST='${params.API_HOST}'
                             EOF
-                            '''
-
+                        '''
                     }
 
                     echo "Environment configuration created"
-                    // Don't print .env to avoid exposing passwords in logs
                     sh 'echo ".env file created successfully"'
                 }
             }
@@ -88,7 +84,6 @@ pipeline {
                 script {
                     echo "Deploying to production using Docker Compose..."
 
-                    // Stop existing containers
                     def downCommand = 'docker compose down'
                     if (params.CLEAN_VOLUMES) {
                         echo "WARNING: Removing volumes (database will be cleared)"
@@ -96,7 +91,6 @@ pipeline {
                     }
                     sh downCommand
 
-                    // Build and start services
                     sh '''
                         docker compose build --no-cache
                         docker compose up -d
@@ -116,15 +110,9 @@ pipeline {
                     echo "Performing health check..."
 
                     sh '''
-                        # Check if containers are running
                         docker compose ps
-
-                        # Wait for API to be ready (max 60 seconds)
                         timeout 60 bash -c 'until curl -f http://localhost:3001/api/health; do sleep 2; done' || exit 1
-
-                        # Check attractions endpoint
                         curl -f http://localhost:3001/api/books || exit 1
-
                         echo "Health check passed!"
                     '''
                 }
@@ -169,7 +157,6 @@ pipeline {
 
         failure {
             echo "❌ Deployment failed!"
-
             script {
                 echo "Printing container logs for debugging..."
                 sh 'docker compose logs --tail=50 || true'
@@ -179,13 +166,9 @@ pipeline {
         always {
             echo "Cleaning up old Docker resources..."
             sh '''
-                # Remove dangling images
                 docker image prune -f
-
-                # Remove old containers
                 docker container prune -f
             '''
         }
     }
 }
-
