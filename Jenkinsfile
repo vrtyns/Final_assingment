@@ -57,8 +57,8 @@ pipeline {
                         string(credentialsId: 'MYSQL_PASSWORD', variable: 'MYSQL_PASS')
                     ]) {
                         // Create .env file
-                        sh '''
-                            cat > .env <<EOF
+                        sh '''#!/bin/bash
+cat > .env <<EOF
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
 MYSQL_DATABASE=booklease
 MYSQL_USER=booklease_user
@@ -69,9 +69,10 @@ API_PORT=3001
 DB_PORT=3306
 FRONTEND_PORT=3000
 NODE_ENV=production
-API_HOST=${params.API_HOST}
+API_HOST='${params.API_HOST}'
 EOF
-                        '''
+'''
+
                     }
 
                     echo "Environment configuration created"
